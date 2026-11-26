@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FlipFrenzy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0f1226; --bg2:#181c3f; --ink:#f2f2f7;
+  --cy:#00e5ff; --mag:#ff2e97; --yel:#ffd600; --red:#ff4d4d; --ok:#3dff8b;
+  --a1:#00e5ff; --a2:#8a3ffc;
+  --px:'Press Start 2P',monospace; --tx:'Nunito',system-ui,sans-serif;
+}
+body[data-world="0"]{--a1:#00e5ff;--a2:#8a3ffc}
+body[data-world="1"]{--a1:#ffd600;--a2:#1f7a3d}
+body[data-world="2"]{--a1:#ff8a00;--a2:#2b6cff}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{
+  min-height:100vh;min-height:100svh;color:var(--ink);font-family:var(--tx);font-size:1rem;
+  background:radial-gradient(circle at 50% 0,var(--a2) -40%,var(--bg) 60%) fixed,var(--bg);
+}
+main{max-width:900px;margin:0 auto;padding:56px 14px 20px}
+h1,h2,.btn,.big,.hud b,.chip{font-family:var(--px)}
+h2{font-size:1rem;color:var(--a1);margin:18px 0 12px;text-align:center;line-height:1.5}
+.screen{display:none;flex-direction:column;align-items:center;text-align:center}
+.screen.active{display:flex}
+
+.logo{font-size:clamp(1.6rem,8vw,3rem);margin:8vh 0 8px;color:var(--cy);text-shadow:0 0 18px var(--cy),4px 4px 0 var(--mag)}
+.logo span{color:var(--yel);text-shadow:0 0 18px var(--yel),4px 4px 0 var(--mag)}
+.tag{opacity:.85;margin:0 0 28px}
+
+.menu{display:flex;flex-direction:column;gap:14px;width:min(320px,100%);margin:18px 0}
+.btn{
+  min-height:48px;padding:14px 18px;font-size:.75rem;line-height:1.4;color:var(--ink);cursor:pointer;
+  background:var(--bg2);border:3px solid var(--cy);border-radius:2px;
+  box-shadow:0 5px 0 var(--mag),0 0 16px rgba(0,229,255,.35);transition:transform .08s,box-shadow .08s;
+}
+.btn.alt{border-color:var(--a1);box-shadow:0 5px 0 #000,0 0 10px rgba(255,255,255,.12)}
+.btn.small{padding:10px 14px;min-height:48px}
+.btn:active{transform:translateY(5px);box-shadow:0 0 0 var(--mag)}
+.btn:focus-visible,.chip:focus-visible,.card:focus-visible,.pu:focus-visible,.icon-btn:focus-visible,#nick:focus-visible{outline:3px solid var(--yel);outline-offset:3px}
+
+.icon-btn{position:fixed;top:10px;right:10px;z-index:20;width:48px;height:48px;font-size:1.3rem;background:var(--bg2);border:3px solid var(--a1);border-radius:50%;cursor:pointer;color:var(--ink)}
+
+.chips{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:8px}
+.chip{min-height:48px;padding:10px 14px;font-size:.65rem;line-height:1.4;color:var(--ink);background:var(--bg2);border:3px solid #3a3f78;border-radius:2px;cursor:pointer}
+.chip.on{border-color:var(--yel);color:var(--yel);box-shadow:0 0 12px rgba(255,214,0,.4)}
+.chip.locked{filter:grayscale(1);opacity:.55;cursor:not-allowed}
+
+.hud{display:flex;flex-wrap:wrap;gap:8px 16px;justify-content:center;align-items:center;font-size:.85rem;margin-bottom:10px}
+.hud b{font-size:.75rem;color:var(--yel)}
+.lives{color:var(--red);font-size:1.3rem;letter-spacing:2px}
+.lives .lost{color:#3a3f78}
+.combo b{color:var(--mag)}
+#time.frozen{color:var(--cy);text-shadow:0 0 10px var(--cy)}
+.pu{width:48px;height:48px;border-radius:50%;font-size:1.3rem;background:var(--bg2);border:3px solid #3a3f78;color:var(--ink);cursor:pointer;opacity:.45}
+.pu.ready{opacity:1;border-color:var(--yel);box-shadow:0 0 14px var(--yel)}
+.pu.used{opacity:.2}
+
+.board{
+  --cols:4;--rows:3;display:grid;gap:8px;grid-template-columns:repeat(var(--cols),1fr);
+  width:min(100%,calc((100vh - 250px) * var(--cols) / var(--rows)));
+  width:min(100%,calc((100svh - 250px) * var(--cols) / var(--rows)));
+  min-width:min(100%,260px);
+}
+.card{perspective:700px;background:none;border:0;padding:0;cursor:pointer;aspect-ratio:1}
+.in{position:relative;display:block;width:100%;height:100%;transition:transform .4s;transform-style:preserve-3d}
+.card.flipped .in{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border:3px solid var(--a1);border-radius:6px;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.back{background:linear-gradient(45deg,var(--a2) 25%,transparent 25%,transparent 75%,var(--a2) 75%) 0 0/14px 14px,var(--bg2);font-family:var(--px);font-size:.7rem;color:var(--a1)}
+.back::after{content:"FF";background:var(--bg);padding:4px 5px;border:2px solid var(--a1)}
+.front{transform:rotateY(180deg);background:#1b2050;font-size:clamp(1.3rem,6.5vw,2.6rem)}
+.card.done .front{border-color:var(--ok);background:#0f3a24;box-shadow:0 0 16px var(--ok)}
+.card.shake .in{animation:shake .4s}
+@keyframes shake{0%,100%{transform:rotateY(180deg)}25%{transform:rotateY(180deg) translateX(-7px)}75%{transform:rotateY(180deg) translateX(7px)}}
+
+.big{font-size:1.6rem;color:var(--yel);margin:6px 0}
+#nameBox{display:flex;flex-direction:column;align-items:center;gap:10px;margin:10px 0}
+#nick{min-height:48px;padding:8px 12px;font:inherit;font-size:1rem;text-align:center;color:var(--ink);background:var(--bg2);border:3px solid var(--cy);border-radius:2px}
+
+.reclist{list-style:none;padding:0;margin:14px 0;width:min(380px,100%)}
+.reclist li{display:flex;justify-content:space-between;padding:10px 12px;margin-bottom:6px;background:var(--bg2);border-left:4px solid var(--a1)}
+.reclist b{font-family:var(--px);font-size:.7rem;color:var(--yel)}
+.rules{max-width:560px;text-align:left;line-height:1.55;padding-left:22px}
+.rules li{margin-bottom:8px}
+
+.overlay{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:rgba(10,12,30,.92)}
+.panel{text-align:center;width:min(360px,92vw)}
+
+@media (max-width:600px){main{padding-top:60px}.hud{font-size:.8rem}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body data-world="0">
+<button id="muteBtn" class="icon-btn" aria-label="Activar o silenciar sonido">🔊</button>
+
+<main>
+  <!-- Inicio -->
+  <section id="home" class="screen active">
+    <h1 class="logo">Flip<span>Frenzy</span></h1>
+    <p class="tag">Encuentra las parejas y mantén el combo.</p>
+    <div class="menu">
+      <button class="btn" data-go="select">Jugar</button>
+      <button class="btn alt" data-go="records">Récords</button>
+      <button class="btn alt" data-go="howto">Cómo jugar</button>
+    </div>
+  </section>
+
+  <!-- Selección de mundo y dificultad -->
+  <section id="select" class="screen">
+    <h2>Elige mundo</h2>
+    <div id="worldList" class="chips"></div>
+    <h2>Elige dificultad</h2>
+    <div id="diffList" class="chips"></div>
+    <div class="menu">
+      <button class="btn" id="startBtn">Empezar</button>
+      <button class="btn alt" data-go="home">Volver</button>
+    </div>
+  </section>
+
+  <!-- Partida -->
+  <section id="game" class="screen">
+    <div class="hud">
+      <span id="lives" class="lives" aria-label="Vidas"></span>
+      <span>⏱ <b id="time">0:00</b></span>
+      <span>Intentos <b id="tries">0</b></span>
+      <span>Puntos <b id="score">0</b></span>
+      <span class="combo">Combo <b id="combo">x1</b></span>
+    </div>
+    <div class="hud">
+      <button id="puEye" class="pu" aria-label="Power-up ojo: muestra las cartas 2 segundos" disabled>👁</button>
+      <button id="puIce" class="pu" aria-label="Power-up congelar: para el tiempo 5 segundos" disabled>❄</button>
+      <button id="pauseBtn" class="btn small alt">Pausa</button>
+    </div>
+    <div id="board" class="board"></div>
+  </section>
+
+  <!-- Resultado -->
+  <section id="result" class="screen">
+    <h2 id="resTitle"></h2>
+    <p class="big" id="resScore"></p>
+    <p id="resInfo"></p>
+    <div id="nameBox" hidden>
+      <p>¡Nuevo récord! Escribe tu apodo:</p>
+      <input id="nick" maxlength="10" placeholder="Apodo" autocomplete="off">
+      <button class="btn small" id="saveName">Guardar</button>
+    </div>
+    <div class="menu">
+      <button class="btn" id="againBtn">Repetir</button>
+      <button class="btn" id="nextBtn">Siguiente mundo</button>
+      <button class="btn alt" data-go="home">Menú</button>
+    </div>
+  </section>
+
+  <!-- Récords -->
+  <section id="records" class="screen">
+    <h2>Récords</h2>
+    <div id="recWorlds" class="chips"></div>
+    <div id="recDiffs" class="chips"></div>
+    <ol id="recList" class="reclist"></ol>
+    <button class="btn alt" data-go="home">Volver</button>
+  </section>
+
+  <!-- Cómo jugar -->
+  <section id="howto" class="screen">
+    <h2>Cómo jugar</h2>
+    <ul class="rules">
+      <li>Gira dos cartas por turno. Si son pareja, se quedan descubiertas.</li>
+      <li>Tienes 5 vidas. Pierdes una cada 3 fallos seguidos.</li>
+      <li>Las parejas seguidas multiplican los puntos (combo).</li>
+      <li>Con combo x3 ganas el ojo 👁 (muestra las cartas 2 s).</li>
+      <li>Con combo x5 ganas el hielo ❄ (para el tiempo 5 s).</li>
+      <li>Cada power-up se usa una vez por partida, con ninguna carta girada.</li>
+      <li>Completa una partida con vidas para desbloquear el siguiente mundo.</li>
+    </ul>
+    <button class="btn alt" data-go="home">Volver</button>
+  </section>
+</main>
+
+<!-- Pausa -->
+<div id="pause" class="overlay" hidden>
+  <div class="panel">
+    <h2>Pausa</h2>
+    <div class="menu">
+      <button class="btn" id="resumeBtn">Continuar</button>
+      <button class="btn alt" id="restartBtn">Reiniciar</button>
+      <button class="btn alt" id="quitBtn">Salir al menú</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ===== Datos ===== */
+const WORLDS = [
+  { name: 'Arcade retro', icons: ['👾','🕹️','🪙','🚀','👻','⭐','💎','🍒','🔔','⚡','🎯','🧩'] },
+  { name: 'Aventura',     icons: ['⚔️','🛡️','🏹','🗝️','🧪','🐉','🏰','👑','📜','🔥','💀','🧙'] },
+  { name: 'Consolas',     icons: ['🎮','💾','📼','🎧','🖥️','🔋','📡','💿','📱','⌨️','🖱️','📺'] }
+];
+const DIFFS = {
+  easy: { name: 'Fácil',   cols: 4, rows: 3 },
+  med:  { name: 'Medio',   cols: 4, rows: 4 },
+  hard: { name: 'Difícil', cols: 6, rows: 4 }
+};
+const $  = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+
+/* ===== Almacenamiento (localStorage con control de errores) ===== */
+const KEY = 'flipfrenzy_v1';
+let save = { unlocked: 1, sound: true, records: {} };
+try {
+  const d = JSON.parse(localStorage.getItem(KEY));
+  if (d && typeof d === 'object') {
+    save.unlocked = Math.min(3, Math.max(1, Number(d.unlocked) || 1));
+    save.sound = d.sound !== false;
+    save.records = d.records && typeof d.records === 'object' ? d.records : {};
+  }
+} catch (e) { /* datos vacíos, bloqueados o corruptos: se usan los valores por defecto */ }
+function persist() { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) {} }
+
+/* ===== Sonido 8-bit (Web Audio API) ===== */
+let ac = null, musicId = null, noteIdx = 0;
+function audio() {
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (ac && ac.state === 'suspended') ac.resume();
+  return ac;
+}
+function beep(f, d = 0.1, type = 'square', v = 0.06, delay = 0) {
+  if (!save.sound) return;
+  const a = audio(); if (!a) return;
+  const t = a.currentTime + delay, o = a.createOscillator(), g = a.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t);
+  g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.001, t + d);
+  o.connect(g); g.connect(a.destination); o.start(t); o.stop(t + d);
+}
+const seq = (notes, step, d, type) => notes.forEach((f, i) => beep(f, d, type, 0.06, i * step));
+const sfx = {
+  flip:  () => beep(440, 0.06),
+  ok:    () => seq([660, 880], 0.08, 0.1),
+  bad:   () => beep(180, 0.2, 'sawtooth'),
+  power: () => seq([523, 659, 784, 1047], 0.07, 0.1),
+  over:  () => seq([400, 300, 220, 150], 0.16, 0.18, 'sawtooth'),
+  win:   () => seq([523, 659, 784, 1047, 1319], 0.1, 0.12)
+};
+const NOTES = [262, 330, 392, 330, 294, 370, 440, 370];
+function musicStart() {
+  if (musicId || !save.sound) return;
+  musicId = setInterval(() => beep(NOTES[noteIdx++ % NOTES.length] / 2, 0.25, 'triangle', 0.025), 320);
+}
+function musicStop() { clearInterval(musicId); musicId = null; }
+
+const muteBtn = $('#muteBtn');
+function syncMute() {
+  muteBtn.textContent = save.sound ? '🔊' : '🔇';
+  muteBtn.setAttribute('aria-pressed', String(!save.sound));
+}
+muteBtn.onclick = () => {
+  save.sound = !save.sound; persist(); syncMute();
+  if (save.sound) { audio(); musicStart(); } else musicStop();
+};
+syncMute();
+
+/* ===== Navegación y selectores ===== */
+const sel = { w: 0, d: 'easy' };
+const rec = { w: 0, d: 'easy' };
+function show(id) {
+  $$('.screen').forEach(s => s.classList.toggle('active', s.id === id));
+  window.scrollTo(0, 0);
+}
+function picker(wEl, dEl, s, lock, cb) {
+  wEl.innerHTML = ''; dEl.innerHTML = '';
+  WORLDS.forEach((w, i) => {
+    const locked = lock && i >= save.unlocked;
+    const b = document.createElement('button');
+    b.className = 'chip' + (s.w === i ? ' on' : '') + (locked ? ' locked' : '');
+    b.textContent = (locked ? '🔒 ' : '') + w.name;
+    b.disabled = locked;
+    b.onclick = () => { s.w = i; picker(wEl, dEl, s, lock, cb); cb(); };
+    wEl.appendChild(b);
+  });
+  Object.entries(DIFFS).forEach(([k, d]) => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (s.d === k ? ' on' : '');
+    b.textContent = d.name + ' ' + d.cols + 'x' + d.rows;
+    b.onclick = () => { s.d = k; picker(wEl, dEl, s, lock, cb); cb(); };
+    dEl.appendChild(b);
+  });
+}
+const pickSelect = () => picker($('#worldList'), $('#diffList'), sel, true, () => { document.body.dataset.world = sel.w; });
+const pickRecords = () => picker($('#recWorlds'), $('#recDiffs'), rec, false, renderRecords);
+
+function renderRecords() {
+  const list = save.records[rec.w + '-' + rec.d] || [];
+  const ol = $('#recList'); ol.innerHTML = '';
+  if (!list.length) { ol.innerHTML = '<li>Aún no hay récords. ¡Juega una partida!</li>'; return; }
+  list.forEach(r => {
+    const li = document.createElement('li');
+    li.innerHTML = '<span></span><b></b>';
+    li.firstChild.textContent = r.n; li.lastChild.textContent = r.s;
+    ol.appendChild(li);
+  });
+}
+
+$$('[data-go]').forEach(b => b.addEventListener('click', () => {
+  const go = b.dataset.go;
+  if (go === 'select') {
+    if (sel.w >= save.unlocked) sel.w = 0;
+    audio(); musicStart(); pickSelect(); document.body.dataset.world = sel.w;
+  }
+  if (go === 'records') { pickRecords(); renderRecords(); }
+  if (go === 'home') document.body.dataset.world = 0;
+  show(go);
+}));
+
+/* ===== Partida ===== */
+let G = null, timerId = null;
+
+function shuffle(a) { // Fisher-Yates
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function startGame() {
+  const d = DIFFS[sel.d], pairs = d.cols * d.rows / 2;
+  document.body.dataset.world = sel.w;
+  const icons = WORLDS[sel.w].icons.slice(0, pairs);
+  G = {
+    deck: shuffle([...icons, ...icons]), pairs, found: 0, first: null, lock: false,
+    lives: 5, miss: 0, combo: 0, score: 0, tries: 0, time: 0,
+    frozen: false, paused: false, over: false, fz: null,
+    pu: { eye: 'locked', ice: 'locked' }
+  };
+  buildBoard(d); updateHUD(); show('game'); startTimer();
+}
+
+function buildBoard(d) {
+  const narrow = window.matchMedia('(max-width:600px)').matches;
+  const cols = d.cols === 6 && narrow ? 4 : d.cols;      // móvil: difícil en 4 columnas
+  const b = $('#board');
+  b.style.setProperty('--cols', cols);
+  b.style.setProperty('--rows', G.deck.length / cols);
+  b.innerHTML = '';
+  G.deck.forEach((ic, i) => {
+    const c = document.createElement('button');
+    c.className = 'card'; c.dataset.i = i; c.setAttribute('aria-label', 'Carta ' + (i + 1));
+    c.innerHTML = '<span class="in"><span class="face back"></span><span class="face front">' + ic + '</span></span>';
+    c.addEventListener('click', () => flip(c));
+    b.appendChild(c);
+  });
+}
+
+function flip(c) {
+  if (!G || G.lock || G.paused || G.over) return;
+  if (c.classList.contains('flipped') || c.classList.contains('done')) return;
+  c.classList.add('flipped'); sfx.flip();
+  if (!G.first) { G.first = c; return; }
+  const a = G.first, b = c;
+  G.first = null; G.lock = true; G.tries++;
+  if (G.deck[a.dataset.i] === G.deck[b.dataset.i]) {
+    setTimeout(() => { [a, b].forEach(x => x.classList.add('done')); hit(); G.lock = false; updateHUD(); }, 350);
+  } else {
+    setTimeout(() => [a, b].forEach(x => x.classList.add('shake')), 300);
+    setTimeout(() => {
+      [a, b].forEach(x => x.classList.remove('flipped', 'shake'));
+      missed();
+      G.lock = false; updateHUD();
+      if (G.lives <= 0) finish(false);
+    }, 800);
+  }
+  updateHUD();
+}
+
+/* Reglas de combo, fallos y vidas: todas en estas dos funciones */
+function hit() {
+  G.found++; G.combo++; G.miss = 0;
+  G.score += 100 * G.combo;
+  if (G.combo >= 3 && G.pu.eye === 'locked') { G.pu.eye = 'ready'; sfx.power(); }
+  else if (G.combo >= 5 && G.pu.ice === 'locked') { G.pu.ice = 'ready'; sfx.power(); }
+  else sfx.ok();
+  if (G.found === G.pairs) finish(true);
+}
+function missed() {
+  sfx.bad(); G.combo = 0; G.miss++;
+  if (G.miss >= 3) { G.miss = 0; G.lives--; }
+}
+
+/* Power-ups: solo con ninguna carta girada */
+$('#puEye').onclick = () => {
+  if (!G || G.pu.eye !== 'ready' || G.first || G.lock || G.paused || G.over) return;
+  G.pu.eye = 'used'; G.lock = true; sfx.power();
+  const hidden = $$('.card:not(.done):not(.flipped)');
+  hidden.forEach(c => c.classList.add('flipped'));
+  updateHUD();
+  setTimeout(() => { hidden.forEach(c => c.classList.remove('flipped')); if (G) G.lock = false; }, 2000);
+};
+$('#puIce').onclick = () => {
+  if (!G || G.pu.ice !== 'ready' || G.first || G.lock || G.paused || G.over) return;
+  G.pu.ice = 'used'; G.frozen = true; sfx.power(); updateHUD();
+  clearTimeout(G.fz);
+  const g = G;
+  g.fz = setTimeout(() => { g.frozen = false; if (G === g) updateHUD(); }, 5000);
+};
+
+/* Cronómetro: una sola variable, se para siempre al pausar, reiniciar o salir */
+function startTimer() {
+  stopTimer();
+  timerId = setInterval(() => { if (G && !G.paused && !G.frozen && !G.over) { G.time++; updateHUD(); } }, 1000);
+}
+function stopTimer() { clearInterval(timerId); timerId = null; }
+
+function updateHUD() {
+  if (!G) return;
+  $('#lives').innerHTML = '♥'.repeat(G.lives) + '<span class="lost">' + '♥'.repeat(5 - G.lives) + '</span>';
+  $('#time').textContent = Math.floor(G.time / 60) + ':' + String(G.time % 60).padStart(2, '0');
+  $('#time').classList.toggle('frozen', G.frozen);
+  $('#tries').textContent = G.tries;
+  $('#score').textContent = G.score;
+  $('#combo').textContent = 'x' + Math.max(1, G.combo);
+  [['eye', '#puEye'], ['ice', '#puIce']].forEach(([k, id]) => {
+    const el = $(id);
+    el.classList.toggle('ready', G.pu[k] === 'ready');
+    el.classList.toggle('used', G.pu[k] === 'used');
+    el.disabled = G.pu[k] !== 'ready';
+  });
+}
+
+/* ===== Pausa ===== */
+$('#pauseBtn').onclick = () => { if (!G || G.over) return; G.paused = true; stopTimer(); $('#pause').hidden = false; };
+$('#resumeBtn').onclick = () => { $('#pause').hidden = true; G.paused = false; startTimer(); };
+$('#restartBtn').onclick = () => { $('#pause').hidden = true; clearTimeout(G.fz); startGame(); };
+$('#quitBtn').onclick = () => { $('#pause').hidden = true; stopTimer(); if (G) clearTimeout(G.fz); G = null; document.body.dataset.world = 0; show('home'); };
+
+/* ===== Resultado ===== */
+function finish(win) {
+  if (G.over) return;
+  G.over = true; stopTimer(); clearTimeout(G.fz);
+  let bonus = 0;
+  if (win) {
+    bonus = Math.max(0, G.pairs * 8 - G.time) * 5 + G.lives * 50;   // bonus por tiempo y vidas
+    G.score += bonus;
+    save.unlocked = Math.max(save.unlocked, Math.min(3, sel.w + 2));
+    persist();
+  }
+  $('#resTitle').textContent = win ? '¡Victoria!' : 'Game over';
+  $('#resScore').textContent = G.score + ' puntos';
+  $('#resInfo').textContent = win
+    ? 'Intentos: ' + G.tries + ' · Bonus: ' + bonus
+    : 'Te has quedado sin vidas. ¡Inténtalo otra vez!';
+  $('#nextBtn').hidden = !(win && sel.w < 2);
+  const list = save.records[sel.w + '-' + sel.d] || [];
+  $('#nameBox').hidden = !(G.score > 0 && (list.length < 5 || G.score > list[list.length - 1].s));
+  win ? sfx.win() : sfx.over();
+  show('result');
+}
+$('#saveName').onclick = () => {
+  const n = ($('#nick').value.trim() || 'ANON').slice(0, 10);
+  const k = sel.w + '-' + sel.d, l = save.records[k] || [];
+  l.push({ n, s: G.score }); l.sort((a, b) => b.s - a.s);
+  save.records[k] = l.slice(0, 5); persist();
+  $('#nameBox').hidden = true;
+};
+$('#againBtn').onclick = startGame;
+$('#nextBtn').onclick = () => { sel.w++; startGame(); };
+$('#startBtn').onclick = startGame;
+</script>
+</body>
+</html>
